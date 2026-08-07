@@ -1,7 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { EmbeddingsProvider } from '../embeddings.interface';
 
-const MODEL_NAME = 'Xenova/all-MiniLM-L6-v2';
+// Multilingual, not just English: the corpus mixes Russian and English docs,
+// and queries are often Russian against English content or vice versa.
+// all-MiniLM-L6-v2 is English-only and collapses cross-lingual pairs into a
+// near-random similarity band (~0.47-0.64 with no separation between the
+// right document and unrelated ones). This model keeps the same 384-dim
+// output, so no vector(384) schema migration is needed — only a re-embed of
+// existing chunks, since vectors from the two models aren't comparable.
+const MODEL_NAME = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2';
 
 interface FeatureExtractionOutput {
   data: Float32Array | number[];

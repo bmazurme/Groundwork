@@ -13,6 +13,11 @@ export interface DocumentRecord {
   updatedAt: string;
 }
 
+export interface DocumentChunkRecord {
+  index: number;
+  content: string;
+}
+
 export function formatFromFilename(filename: string): DocumentFormat | null {
   const ext = filename.toLowerCase().split('.').pop();
   switch (ext) {

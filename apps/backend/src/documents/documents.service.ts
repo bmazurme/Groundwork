@@ -1,4 +1,9 @@
-import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { randomUUID } from 'node:crypto';
@@ -6,7 +11,11 @@ import type { Pool } from 'pg';
 import { PG_POOL } from '../database/database.constants';
 import { StorageService } from '../storage/storage.service';
 import { DOCUMENT_PROCESSING_QUEUE } from '../queue/queue.constants';
-import { DocumentRecord, formatFromFilename } from './document.entity';
+import {
+  DocumentChunkRecord,
+  DocumentRecord,
+  formatFromFilename,
+} from './document.entity';
 
 export interface UploadedFile {
   originalname: string;
@@ -64,19 +73,75 @@ export class DocumentsService {
       );
     }
 
-    const id = randomUUID();
-    const s3Key = `documents/${id}-${file.originalname}`;
+    // Re-uploading a file with the same name replaces it as a new version of
+    // the same document, instead of creating a duplicate row.
+    const existing = await this.pool.query<{
+      id: string;
+      s3_key: string;
+      version: number;
+    }>('SELECT id, s3_key, version FROM documents WHERE name = $1', [
+      file.originalname,
+    ]);
+    const previous = existing.rows[0];
+
+    const id = previous?.id ?? randomUUID();
+    const version = (previous?.version ?? 0) + 1;
+    const s3Key = `documents/${id}-v${version}-${file.originalname}`;
     await this.storage.upload(s3Key, file.buffer, file.mimetype);
 
-    const result = await this.pool.query<DocumentRow>(
-      `INSERT INTO documents (id, name, format, s3_key, status, version)
-       VALUES ($1, $2, $3, $4, 'pending', 1)
-       RETURNING ${DOCUMENT_COLUMNS}`,
-      [id, file.originalname, format, s3Key],
-    );
+    if (previous) {
+      await this.storage.delete(previous.s3_key).catch(() => {
+        // Best-effort cleanup of the replaced version's object.
+      });
+    }
+
+    const result = previous
+      ? await this.pool.query<DocumentRow>(
+          `UPDATE documents
+           SET format = $2, s3_key = $3, status = 'pending', version = $4,
+               failure_reason = NULL, updated_at = now()
+           WHERE id = $1
+           RETURNING ${DOCUMENT_COLUMNS}`,
+          [id, format, s3Key, version],
+        )
+      : await this.pool.query<DocumentRow>(
+          `INSERT INTO documents (id, name, format, s3_key, status, version)
+           VALUES ($1, $2, $3, $4, 'pending', 1)
+           RETURNING ${DOCUMENT_COLUMNS}`,
+          [id, file.originalname, format, s3Key],
+        );
 
     await this.queue.add('process', { documentId: id });
 
     return toDocumentRecord(result.rows[0]);
+  }
+
+  async getChunks(id: string): Promise<DocumentChunkRecord[]> {
+    const document = await this.pool.query('SELECT id FROM documents WHERE id = $1', [id]);
+    if (document.rows.length === 0) {
+      throw new NotFoundException(`Document ${id} not found`);
+    }
+
+    const result = await this.pool.query<{ chunk_index: number; content: string }>(
+      'SELECT chunk_index, content FROM document_chunks WHERE document_id = $1 ORDER BY chunk_index',
+      [id],
+    );
+    return result.rows.map((row) => ({ index: row.chunk_index, content: row.content }));
+  }
+
+  async remove(id: string): Promise<void> {
+    const result = await this.pool.query<{ s3_key: string }>(
+      'SELECT s3_key FROM documents WHERE id = $1',
+      [id],
+    );
+    const document = result.rows[0];
+    if (!document) {
+      throw new NotFoundException(`Document ${id} not found`);
+    }
+
+    await this.pool.query('DELETE FROM documents WHERE id = $1', [id]);
+    await this.storage.delete(document.s3_key).catch(() => {
+      // Best-effort cleanup — the document row is already gone either way.
+    });
   }
 }

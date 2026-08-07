@@ -9,12 +9,25 @@ import type { MatchType, SearchResult, SearchSource } from './search.types';
 const RRF_K = 60;
 const CANDIDATES_PER_METHOD = 20;
 const TOP_RESULTS = 5;
+// Cosine distance cutoff for semantic-only results (no keyword corroboration).
+// RRF score can't do this job — it encodes rank, not similarity, so a
+// semantically-irrelevant chunk that happens to be the vector search's #1
+// candidate scores identically to a genuinely close one. Picked empirically
+// from a real query ("e2e"): a legit match landed at ~0.66, the nearest
+// unrelated filler at ~0.76 — 0.72 sits between them with some margin, but
+// this is a heuristic tuned on one small corpus, not a principled bound.
+const SEMANTIC_ONLY_MAX_DISTANCE = 0.72;
 
 interface ChunkRow {
   id: string;
   document_id: string;
   document_name: string;
+  chunk_index: number;
   content: string;
+}
+
+interface VectorChunkRow extends ChunkRow {
+  distance: number;
 }
 
 interface RankedChunk {
@@ -47,7 +60,7 @@ export class SearchService {
 
     const [fullText, vector] = await Promise.all([
       this.pool.query<ChunkRow>(
-        `SELECT dc.id, dc.document_id, d.name AS document_name, dc.content
+        `SELECT dc.id, dc.document_id, d.name AS document_name, dc.chunk_index, dc.content
          FROM document_chunks dc
          JOIN documents d ON d.id = dc.document_id
          WHERE to_tsvector('english', dc.content) @@ websearch_to_tsquery('english', $1)
@@ -55,24 +68,34 @@ export class SearchService {
          LIMIT $2`,
         [trimmed, CANDIDATES_PER_METHOD],
       ),
-      this.pool.query<ChunkRow>(
-        `SELECT dc.id, dc.document_id, d.name AS document_name, dc.content
+      this.pool.query<VectorChunkRow>(
+        `SELECT dc.id, dc.document_id, d.name AS document_name, dc.chunk_index, dc.content,
+                dc.embedding <=> $1::vector AS distance
          FROM document_chunks dc
          JOIN documents d ON d.id = dc.document_id
-         ORDER BY dc.embedding <=> $1::vector
+         ORDER BY distance
          LIMIT $2`,
         [queryEmbedding, CANDIDATES_PER_METHOD],
       ),
     ]);
 
-    const top = reciprocalRankFusion(fullText.rows, vector.rows).slice(
-      0,
-      TOP_RESULTS,
+    const distanceById = new Map(
+      vector.rows.map((row) => [row.id, row.distance]),
     );
+
+    const top = reciprocalRankFusion(fullText.rows, vector.rows)
+      .filter(
+        (chunk) =>
+          chunk.matchType !== 'semantic' ||
+          (distanceById.get(chunk.row.id) ?? Infinity) <=
+            SEMANTIC_ONLY_MAX_DISTANCE,
+      )
+      .slice(0, TOP_RESULTS);
 
     const sources: SearchSource[] = top.map(({ row, score, matchType }) => ({
       documentId: row.document_id,
       documentName: row.document_name,
+      chunkIndex: row.chunk_index,
       excerpt: row.content,
       score,
       matchType,

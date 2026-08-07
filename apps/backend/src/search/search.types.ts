@@ -3,6 +3,7 @@ export type MatchType = 'keyword' | 'semantic' | 'both';
 export interface SearchSource {
   documentId: string;
   documentName: string;
+  chunkIndex: number;
   excerpt: string;
   score: number;
   matchType: MatchType;

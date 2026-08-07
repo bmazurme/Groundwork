@@ -1,6 +1,9 @@
 import {
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  Param,
   Post,
   UploadedFile,
   UseInterceptors,
@@ -8,7 +11,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { DocumentsService } from './documents.service';
-import type { DocumentRecord } from './document.entity';
+import type { DocumentChunkRecord, DocumentRecord } from './document.entity';
 
 @Controller('documents')
 export class DocumentsController {
@@ -23,5 +26,16 @@ export class DocumentsController {
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   upload(@UploadedFile() file: Express.Multer.File): Promise<DocumentRecord> {
     return this.documentsService.upload(file);
+  }
+
+  @Get(':id/chunks')
+  getChunks(@Param('id') id: string): Promise<DocumentChunkRecord[]> {
+    return this.documentsService.getChunks(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(@Param('id') id: string): Promise<void> {
+    return this.documentsService.remove(id);
   }
 }

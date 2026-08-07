@@ -57,7 +57,9 @@ export class DocumentsProcessor extends WorkerHost {
     try {
       const buffer = await this.storage.download(document.s3_key);
       const text = await parseDocument(document.format, buffer);
-      const chunks = chunkText(text, { markdown: document.format === 'markdown' });
+      const chunks = chunkText(text, {
+        markdown: document.format === 'markdown',
+      });
 
       if (chunks.length === 0) {
         throw new Error('No extractable text found in document');

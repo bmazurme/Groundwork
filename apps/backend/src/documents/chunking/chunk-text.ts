@@ -21,11 +21,16 @@ interface Unit {
   atomic: boolean;
 }
 
-export function chunkText(text: string, options: ChunkTextOptions = {}): TextChunk[] {
+export function chunkText(
+  text: string,
+  options: ChunkTextOptions = {},
+): TextChunk[] {
   const normalized = text.replace(/\r\n/g, '\n').trim();
   if (!normalized) return [];
 
-  const units = options.markdown ? splitMarkdown(normalized) : splitProse(normalized);
+  const units = options.markdown
+    ? splitMarkdown(normalized)
+    : splitProse(normalized);
   return packUnits(units);
 }
 
@@ -118,7 +123,10 @@ function splitOversized(text: string): Unit[] {
       continue;
     }
     const current = buffer.join(' ');
-    if (buffer.length > 0 && current.length + 1 + sentence.length > CHUNK_SIZE) {
+    if (
+      buffer.length > 0 &&
+      current.length + 1 + sentence.length > CHUNK_SIZE
+    ) {
       flush();
     }
     buffer.push(sentence);
@@ -170,7 +178,10 @@ function packUnits(units: Unit[]): TextChunk[] {
     }
 
     const current = buffer.join('\n\n');
-    if (buffer.length > 0 && current.length + 2 + unit.text.length > CHUNK_SIZE) {
+    if (
+      buffer.length > 0 &&
+      current.length + 2 + unit.text.length > CHUNK_SIZE
+    ) {
       flush(true);
     }
     buffer.push(unit.text);
