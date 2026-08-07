@@ -1,0 +1,30 @@
+.dashboard {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
+
+.dashboard-header {
+  margin-bottom: 32px;
+}
+
+.dashboard-section {
+  margin-bottom: 32px;
+}
+
+.documents-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.documents-table th,
+.documents-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--g-color-line-generic);
+}
+
+.documents-table th {
+  color: var(--g-color-text-secondary);
+  font-weight: 500;
+}

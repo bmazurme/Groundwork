@@ -1,0 +1,69 @@
+.markdown-content {
+  font-size: inherit;
+  line-height: 1.5;
+  color: var(--g-color-text-secondary);
+}
+
+.markdown-content > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-content p {
+  margin: 0 0 8px;
+}
+
+.markdown-content a {
+  color: var(--g-color-text-link);
+}
+
+.markdown-content pre {
+  background: var(--g-color-base-generic);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0 0 8px;
+}
+
+.markdown-content code {
+  font-family: var(--g-font-family-monospace);
+  font-size: 0.9em;
+}
+
+.markdown-content :not(pre) > code {
+  background: var(--g-color-base-generic);
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.markdown-content pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown-content mark {
+  background: var(--g-color-base-warning-light);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.markdown-content .markdown-mermaid {
+  margin: 0 0 8px;
+  overflow-x: auto;
+}
+
+.markdown-content .markdown-mermaid svg {
+  max-width: 100%;
+}
+
+.markdown-content .markdown-mermaid-fallback {
+  background: var(--g-color-base-generic);
+  padding: 12px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0 0 8px;
+}

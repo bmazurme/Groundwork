@@ -1,0 +1,9 @@
+/* Typography, colors, and theming come from @gravity-ui/uikit (imported in
+   main.tsx) and its ThemeProvider — this file only resets browser defaults. */
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100vh;
+}
