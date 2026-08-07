@@ -1,0 +1,20 @@
+{
+  "name": "groundwork",
+  "private": true,
+  "version": "0.0.1",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm run start:dev -w backend\" \"npm run dev -w frontend\"",
+    "dev:backend": "npm run start:dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "lint": "npm run lint -w backend && npm run lint -w frontend",
+    "test": "npm run test -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
