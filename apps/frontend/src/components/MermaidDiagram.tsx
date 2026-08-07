@@ -10,7 +10,13 @@ export function MermaidDiagram({ code }: { code: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    mermaid.initialize({ startOnLoad: false, theme: themeType === 'dark' ? 'dark' : 'default' });
+    // suppressErrorRendering keeps a parse failure inside our try/catch instead of mermaid
+    // injecting its own error-diagram SVG straight into document.body, outside this component.
+    mermaid.initialize({
+      startOnLoad: false,
+      suppressErrorRendering: true,
+      theme: themeType === 'dark' ? 'dark' : 'default',
+    });
     mermaid
       .render(`mermaid-${id}`, code)
       .then(({ svg }) => {

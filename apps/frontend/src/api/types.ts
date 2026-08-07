@@ -6,11 +6,12 @@ export interface HealthStatus {
 }
 
 export type DocumentIndexStatus = 'pending' | 'indexing' | 'indexed' | 'failed';
+export type DocumentFormat = 'pdf' | 'docx' | 'html' | 'markdown';
 
 export interface DocumentRecord {
   id: string;
   name: string;
-  format: 'pdf' | 'docx' | 'html' | 'markdown';
+  format: DocumentFormat;
   status: DocumentIndexStatus;
   version: number;
   failureReason: string | null;
@@ -23,6 +24,7 @@ export type MatchType = 'keyword' | 'semantic' | 'both';
 export interface SearchSource {
   documentId: string;
   documentName: string;
+  chunkIndex: number;
   excerpt: string;
   score: number;
   matchType: MatchType;
@@ -32,4 +34,9 @@ export interface SearchResult {
   query: string;
   answer: string;
   sources: SearchSource[];
+}
+
+export interface DocumentChunk {
+  index: number;
+  content: string;
 }

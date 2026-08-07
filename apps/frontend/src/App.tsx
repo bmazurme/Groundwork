@@ -1,20 +1,41 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Flex, Label, Text, ThemeProvider, type Theme } from '@gravity-ui/uikit';
+import {
+  Card,
+  Dialog,
+  DialogBody,
+  DialogFooter,
+  DialogHeader,
+  Flex,
+  Label,
+  Text,
+  ThemeProvider,
+  ToasterComponent,
+  ToasterProvider,
+  type Theme,
+  useToaster,
+} from '@gravity-ui/uikit';
+import { toaster } from '@gravity-ui/uikit/toaster-singleton';
+import type { DocumentRecord } from './api/types';
 import { api } from './api/client';
+import { useTheme } from './hooks/useTheme';
 import { ThemeToggle } from './components/ThemeToggle';
 import { DocumentsTable } from './components/DocumentsTable';
+import { UploadDropzone } from './components/UploadDropzone';
 import { SearchPanel } from './components/SearchPanel';
 import './App.css';
 
 const ACTIVE_STATUSES = new Set(['pending', 'indexing']);
 
 function App() {
-  const [theme, setTheme] = useState<Theme>('system');
+  const [theme, setTheme] = useTheme();
 
   return (
     <ThemeProvider theme={theme}>
-      <Dashboard theme={theme} onThemeChange={setTheme} />
+      <ToasterProvider toaster={toaster}>
+        <Dashboard theme={theme} onThemeChange={setTheme} />
+        <ToasterComponent />
+      </ToasterProvider>
     </ThemeProvider>
   );
 }
@@ -26,7 +47,8 @@ interface DashboardProps {
 
 function Dashboard({ onThemeChange }: DashboardProps) {
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { add: addToast } = useToaster();
+  const [docPendingDelete, setDocPendingDelete] = useState<DocumentRecord | null>(null);
 
   const healthQuery = useQuery({
     queryKey: ['health'],
@@ -44,18 +66,49 @@ function Dashboard({ onThemeChange }: DashboardProps) {
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => api.uploadDocument(file),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: (doc) => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      addToast({
+        name: `upload-${doc.id}-${doc.version}`,
+        title: `"${doc.name}" uploaded`,
+        theme: 'success',
+        autoHiding: 4000,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        name: `upload-error-${Date.now()}`,
+        title: 'Upload failed',
+        content: error instanceof Error ? error.message : undefined,
+        theme: 'danger',
+        isClosable: true,
+      });
+    },
   });
 
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    uploadMutation.mutate(file, {
-      onSettled: () => {
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      },
-    });
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.deleteDocument(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      const name = docPendingDelete?.name ?? 'Document';
+      addToast({
+        name: `delete-${id}`,
+        title: `"${name}" deleted`,
+        theme: 'success',
+        autoHiding: 4000,
+      });
+    },
+    onError: (error) => {
+      addToast({
+        name: `delete-error-${Date.now()}`,
+        title: 'Delete failed',
+        content: error instanceof Error ? error.message : undefined,
+        theme: 'danger',
+        isClosable: true,
+      });
+    },
+    onSettled: () => setDocPendingDelete(null),
+  });
 
   const healthLabel = healthQuery.isError
     ? 'backend unreachable'
@@ -74,35 +127,46 @@ function Dashboard({ onThemeChange }: DashboardProps) {
         </Flex>
       </Flex>
 
-      <Flex direction="column" gap={2} className="dashboard-section">
-        <Text variant="subheader-2">Document library</Text>
-        <Flex alignItems="center" gap={2}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.docx,.html,.htm,.md,.markdown,.txt"
-            onChange={handleUpload}
+      <Card view="outlined" type="container" className="dashboard-card">
+        <Flex direction="column" gap={3}>
+          <Text variant="subheader-2">Document library</Text>
+          <UploadDropzone
+            onFileSelected={(file) => uploadMutation.mutate(file)}
             disabled={uploadMutation.isPending}
           />
-          {uploadMutation.isPending && <Text color="secondary">Uploading…</Text>}
-        </Flex>
-        {uploadMutation.isError && (
-          <Alert
-            theme="danger"
-            message={
-              uploadMutation.error instanceof Error
-                ? uploadMutation.error.message
-                : 'Upload failed'
-            }
+          <DocumentsTable
+            documents={documentsQuery.data ?? []}
+            isLoading={documentsQuery.isLoading}
+            onDelete={setDocPendingDelete}
+            deletingId={deleteMutation.isPending ? deleteMutation.variables ?? null : null}
           />
-        )}
-        <DocumentsTable documents={documentsQuery.data ?? []} />
-      </Flex>
+        </Flex>
+      </Card>
 
-      <Flex direction="column" gap={2} className="dashboard-section">
-        <Text variant="subheader-2">Grounded search</Text>
-        <SearchPanel />
-      </Flex>
+      <Card view="outlined" type="container" className="dashboard-card">
+        <Flex direction="column" gap={3}>
+          <Text variant="subheader-2">Grounded search</Text>
+          <SearchPanel />
+        </Flex>
+      </Card>
+
+      <Dialog open={docPendingDelete !== null} onClose={() => setDocPendingDelete(null)}>
+        <DialogHeader caption="Delete document" />
+        <DialogBody>
+          <Text>
+            Delete <strong>{docPendingDelete?.name}</strong>? This removes it and all of its
+            indexed chunks. This can&apos;t be undone.
+          </Text>
+        </DialogBody>
+        <DialogFooter
+          textButtonApply="Delete"
+          textButtonCancel="Cancel"
+          loading={deleteMutation.isPending}
+          propsButtonApply={{ view: 'outlined-danger' }}
+          onClickButtonApply={() => docPendingDelete && deleteMutation.mutate(docPendingDelete.id)}
+          onClickButtonCancel={() => setDocPendingDelete(null)}
+        />
+      </Dialog>
     </div>
   );
 }

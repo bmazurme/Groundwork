@@ -3,7 +3,10 @@ import ReactMarkdown, { type Components } from 'react-markdown';
 import type { Element, Root } from 'hast';
 import { MermaidDiagram } from './MermaidDiagram';
 import { highlightTerms } from './highlight-terms';
+import { stripHtmlComments } from './strip-html-comments';
 import './MarkdownContent.css';
+
+const remarkPlugins = [() => stripHtmlComments];
 
 function mermaidCodeNode(node: Element | undefined): Element | undefined {
   const codeNode = node?.children?.[0];
@@ -44,7 +47,7 @@ export function MarkdownContent({
 
   return (
     <div className="markdown-content">
-      <ReactMarkdown components={components} rehypePlugins={rehypePlugins}>
+      <ReactMarkdown components={components} remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins}>
         {content}
       </ReactMarkdown>
     </div>
