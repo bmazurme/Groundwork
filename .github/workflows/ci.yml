@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run build
+
+      - run: npm run test -w backend -- --passWithNoTests
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Start stack
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:3001/api/health | grep -q '"status":"ok"'; then
+              echo "backend is up"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "backend did not become healthy in time"
+          docker compose logs backend
+          exit 1
+
+      - name: Wait for frontend
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:5173 > /dev/null; then
+              echo "frontend is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "frontend did not become available in time"
+          docker compose logs frontend
+          exit 1
+
+      - name: Run Cypress
+        run: npm run cypress:run -w frontend
+        env:
+          CYPRESS_BASE_URL: http://localhost:5173
+
+      - name: Upload Cypress artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-artifacts
+          path: |
+            apps/frontend/cypress/screenshots
+            apps/frontend/cypress/videos
+          if-no-files-found: ignore
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
