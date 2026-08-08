@@ -1,6 +1,11 @@
 # Groundwork
 
-Grounded answers over your internal documents, with the evals to prove it. See [init.md](init.md) for the full product spec.
+[![CI](https://github.com/bmazurme/Groundwork/actions/workflows/ci.yml/badge.svg)](https://github.com/bmazurme/Groundwork/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D22-339933?logo=node.js&logoColor=white)](package.json)
+[![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
+
+Grounded answers over your internal documents, with the evals to prove it.
 
 ## Tech stack
 
