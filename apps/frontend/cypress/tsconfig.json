@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023", "dom"],
+    "types": ["cypress", "node"],
+    "isolatedModules": false
+  },
+  "include": ["**/*.ts"]
+}

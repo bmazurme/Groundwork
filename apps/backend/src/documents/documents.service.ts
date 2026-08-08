@@ -117,16 +117,25 @@ export class DocumentsService {
   }
 
   async getChunks(id: string): Promise<DocumentChunkRecord[]> {
-    const document = await this.pool.query('SELECT id FROM documents WHERE id = $1', [id]);
+    const document = await this.pool.query(
+      'SELECT id FROM documents WHERE id = $1',
+      [id],
+    );
     if (document.rows.length === 0) {
       throw new NotFoundException(`Document ${id} not found`);
     }
 
-    const result = await this.pool.query<{ chunk_index: number; content: string }>(
+    const result = await this.pool.query<{
+      chunk_index: number;
+      content: string;
+    }>(
       'SELECT chunk_index, content FROM document_chunks WHERE document_id = $1 ORDER BY chunk_index',
       [id],
     );
-    return result.rows.map((row) => ({ index: row.chunk_index, content: row.content }));
+    return result.rows.map((row) => ({
+      index: row.chunk_index,
+      content: row.content,
+    }));
   }
 
   async remove(id: string): Promise<void> {
