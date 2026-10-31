@@ -8,6 +8,7 @@
 FROM node:22-slim AS base
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
@@ -26,6 +27,7 @@ FROM node:22-slim AS production
 RUN apt-get update && apt-get upgrade -y && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 COPY package.json package-lock.json ./
 COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json

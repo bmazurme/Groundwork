@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# The CUDA build of onnxruntime-node is downloaded from nuget.org on install and
+# is not needed on CPU-only runners; that download timed out and failed npm ci.
+env:
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+
 jobs:
   build:
     runs-on: ubuntu-latest
